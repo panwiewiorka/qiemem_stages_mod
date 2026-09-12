@@ -285,6 +285,45 @@ void SegmentGenerator::ProcessDecayEnvelope(
   }
 }
 
+void SegmentGenerator::ProcessAttackDecayEnvelope(
+    const GateFlags* gate_flags, SegmentGenerator::Output* out, size_t size) {
+  const float attack_frequency =
+      RateToFrequency(parameters_[0].primary);
+  const float decay_frequency =
+      RateToFrequency(local_parameters_[0].slider);
+
+  while (size--) {
+    if ((*gate_flags & GATE_FLAG_RISING) &&
+        (active_segment_ != 0 || segments_[0].retrig)) {
+      phase_ = 0.0f;
+      active_segment_ = 0;
+    }
+
+    if (active_segment_ == 0) {
+      // Attack: 0 -> 1.
+      phase_ += attack_frequency;
+      if (phase_ >= 1.0f) {
+        phase_ = 1.0f;
+        active_segment_ = 1;
+      }
+    } else {
+      // Decay: 1 -> 0.
+      phase_ -= decay_frequency;
+      if (phase_ <= 0.0f) {
+        phase_ = 0.0f;
+      }
+    }
+
+    lp_ = value_ = WarpPhase(phase_, parameters_[0].secondary);
+
+    out->value = lp_;
+    out->phase = phase_;
+    out->segment = active_segment_;
+    ++gate_flags;
+    ++out;
+  }
+}
+
 void SegmentGenerator::ProcessRiseAndFall(
     const GateFlags* gate_flags, SegmentGenerator::Output* out, size_t size) {
   float fall = PortamentoRateToLPCoefficient(local_parameters_[0].slider);
@@ -1725,7 +1764,7 @@ SegmentGenerator::ProcessFn SegmentGenerator::advanced_process_fn_table_[16] = {
   // RAMP
   &SegmentGenerator::ProcessRiseAndFall,
   &SegmentGenerator::ProcessFreeRunningLFO,
-  &SegmentGenerator::ProcessDecayEnvelope,
+  &SegmentGenerator::ProcessAttackDecayEnvelope,
   &SegmentGenerator::ProcessTapLFO,
 
   // STEP

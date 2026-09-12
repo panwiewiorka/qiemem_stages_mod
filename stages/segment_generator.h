@@ -259,6 +259,7 @@ class SegmentGenerator {
   DECLARE_PROCESS_FN(RiseAndFall);
   DECLARE_PROCESS_FN(Sequencer)
   DECLARE_PROCESS_FN(DecayEnvelope);
+  DECLARE_PROCESS_FN(AttackDecayEnvelope);
   DECLARE_PROCESS_FN(TimedPulseGenerator);
   DECLARE_PROCESS_FN(GateGenerator);
   DECLARE_PROCESS_FN(ProbabilisticGateGenerator);
