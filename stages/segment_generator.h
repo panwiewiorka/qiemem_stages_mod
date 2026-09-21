@@ -190,6 +190,9 @@ class SegmentGenerator {
     segments_[0].bipolar = segment_configuration.bipolar;
     segments_[0].retrig = (segment_configuration.type != segment::TYPE_RAMP)
         || !segment_configuration.bipolar;
+    if (new_process_fn == &SegmentGenerator::ProcessAttackDecayEnvelope) {
+      segments_[0].retrig = false;
+    }
     segments_[0].quant_scale = segment_configuration.quant_scale;
     reset_on_gate_ = segment_configuration.reset_on_gate;
     num_segments_ = 1;

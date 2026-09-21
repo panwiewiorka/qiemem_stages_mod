@@ -287,21 +287,22 @@ void SegmentGenerator::ProcessDecayEnvelope(
 
 void SegmentGenerator::ProcessAttackDecayEnvelope(
     const GateFlags* gate_flags, SegmentGenerator::Output* out, size_t size) {
+  const bool zero_attack = parameters_[0].secondary <= 1.0f / 2048.0f;
   const float attack_frequency =
-      RateToFrequency(parameters_[0].primary);
+      RateToFrequency(parameters_[0].secondary);
   const float decay_frequency =
       RateToFrequency(local_parameters_[0].slider);
 
   while (size--) {
-    if ((*gate_flags & GATE_FLAG_RISING) &&
-        (active_segment_ != 0 || segments_[0].retrig)) {
-      phase_ = 0.0f;
+    // With retriggering off, gates during attack are ignored, while gates
+    // during decay restart the attack from the current envelope state.
+    if ((*gate_flags & GATE_FLAG_RISING) && active_segment_ != 0) {
       active_segment_ = 0;
     }
 
     if (active_segment_ == 0) {
       // Attack: 0 -> 1.
-      phase_ += attack_frequency;
+      phase_ = zero_attack ? 1.0f : phase_ + attack_frequency;
       if (phase_ >= 1.0f) {
         phase_ = 1.0f;
         active_segment_ = 1;
@@ -314,7 +315,7 @@ void SegmentGenerator::ProcessAttackDecayEnvelope(
       }
     }
 
-    lp_ = value_ = WarpPhase(phase_, parameters_[0].secondary);
+    lp_ = value_ = WarpPhase(phase_, 0.5f);
 
     out->value = lp_;
     out->phase = phase_;
