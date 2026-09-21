@@ -113,7 +113,13 @@ void Process(IOBuffer::Block* block, size_t size) {
       &settings,
       &segment_generator[0],
       out);
-  for (size_t channel = 0; channel < kNumChannels; ++channel) {
+  const bool reverse_channels =
+      settings.state().multimode == MULTI_MODE_STAGES_ADVANCED &&
+      chain_state.size() == 1;
+  for (size_t step = 0; step < kNumChannels; ++step) {
+    const size_t channel = reverse_channels
+        ? kNumChannels - 1 - step
+        : step;
     // Doing the shift here was found to have better performance that in the
     // conditional below. wtf...
     out->changed_segments >>= 1;

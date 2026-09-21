@@ -301,6 +301,84 @@ void ChainState::Configure(
   attenuate_ = 0;
   process_cv_ = 0;
 
+  // In a single module, advanced mode flows from right to left. Keep the
+  // physical channel index as the generator index, while building each
+  // generator's logical segments from its gated channel toward the left.
+  if (mode == MULTI_MODE_STAGES_ADVANCED && size_ == 1) {
+    bool claimed[kNumChannels] = { false };
+    for (int i = kNumChannels - 1; i >= 0; --i) {
+      segment_generator[i].SetMode(mode);
+      if (claimed[i]) {
+        continue;
+      }
+
+      if (!local_channel(i)->input_patched()) {
+        segment::Configuration c =
+            local_channel(i)->configuration(local_configs[i]);
+        segment_generator[i].ConfigureSingleSegment(false, c);
+        binding_[num_bindings_].generator = i;
+        binding_[num_bindings_].source = i;
+        binding_[num_bindings_].destination = 0;
+        ++num_bindings_;
+        ++num_internal_bindings_;
+        loop_status_[i] = c.loop ? LOOP_STATUS_SELF : LOOP_STATUS_NONE;
+        attenuate_ |= segment_generator[i].needs_attenuation() << i;
+        process_cv_ |= segment_generator[i].needs_cv_preprocessing() << i;
+        continue;
+      }
+
+      int physical_channels[kNumChannels];
+      int num_segments = 0;
+      physical_channels[num_segments++] = i;
+      int channel = i - 1;
+      while (channel >= 0 && !local_channel(channel)->input_patched()) {
+        physical_channels[num_segments++] = channel--;
+      }
+
+      Loop loop = { -1, -1 };
+      bool dirty = false;
+      for (int segment = 0; segment < num_segments; ++segment) {
+        const int physical = physical_channels[segment];
+        claimed[physical] = true;
+        segment::Configuration c =
+            local_channel(physical)->configuration(local_configs[physical]);
+        configuration[segment] = c;
+        dirty |= dirty_[physical];
+        if (c.loop) {
+          if (loop.start == -1) loop.start = segment;
+          loop.end = segment;
+        }
+
+        binding_[num_bindings_].generator = i;
+        binding_[num_bindings_].source = physical;
+        binding_[num_bindings_].destination = segment;
+        ++num_bindings_;
+        ++num_internal_bindings_;
+      }
+
+      if (dirty || num_segments != segment_generator[i].num_segments()) {
+        segment_generator[i].Configure(true, configuration, num_segments);
+      }
+      for (int segment = 0; segment < num_segments; ++segment) {
+        const int physical = physical_channels[segment];
+        if (segment == 0) {
+          set_loop_status(physical, segment, loop);
+        } else {
+          segment_generator[physical].SetMode(mode);
+          segment_generator[physical].ConfigureSlave(segment);
+          set_loop_status(physical, segment, loop);
+        }
+        attenuate_ |= segment_generator[physical].needs_attenuation() << physical;
+        process_cv_ |= segment_generator[physical].needs_cv_preprocessing() << physical;
+      }
+      last_loop = loop;
+      last_patched_channel = i;
+    }
+    tx_last_loop_ = last_loop;
+    tx_last_patched_channel_ = last_patched_channel;
+    return;
+  }
+
   for (size_t i = 0; i < kNumChannels; ++i) {
     size_t channel = local_channel_index(i);
     segment_generator[i].SetMode(mode);
