@@ -88,6 +88,7 @@ void ChainState::Reinit(const Settings& settings) {
   fill(&last_local_config_[0], &last_local_config_[kNumChannels], 0);
   fill(&unpatch_counter_[0], &unpatch_counter_[kNumChannels], 0);
   fill(&loop_status_[0], &loop_status_[kNumChannels], LOOP_STATUS_NONE);
+  fill(&single_attack_decay_[0], &single_attack_decay_[kNumChannels], false);
   fill(&switch_pressed_[0], &switch_pressed_[kMaxChainSize], 0);
   fill(&switch_press_time_[0], &switch_press_time_[kMaxNumChannels], 0);
 
@@ -300,6 +301,7 @@ void ChainState::Configure(
 
   attenuate_ = 0;
   process_cv_ = 0;
+  fill(&single_attack_decay_[0], &single_attack_decay_[kNumChannels], false);
 
   // In a single module, advanced mode flows from right to left. Keep the
   // physical channel index as the generator index, while building each
@@ -358,6 +360,12 @@ void ChainState::Configure(
 
       if (dirty || num_segments != segment_generator[i].num_segments()) {
         segment_generator[i].Configure(true, configuration, num_segments);
+      }
+      if (num_segments == 1 && !configuration[0].loop &&
+          configuration[0].type == segment::TYPE_RAMP) {
+        single_attack_decay_[i] = true;
+        segment_generator[i].SetAttackDecayCurve(
+            static_cast<float>(settings.state().attack_decay_curve[i]) / 255.0f);
       }
       for (int segment = 0; segment < num_segments; ++segment) {
         const int physical = physical_channels[segment];
@@ -442,6 +450,13 @@ void ChainState::Configure(
       }
       if (dirty || num_segments != segment_generator[i].num_segments()) {
         segment_generator[i].Configure(true, configuration, num_segments);
+      }
+      if (num_segments == 1 && !configuration[0].loop &&
+          configuration[0].type == segment::TYPE_RAMP &&
+          mode == MULTI_MODE_STAGES_ADVANCED) {
+        single_attack_decay_[i] = true;
+        segment_generator[i].SetAttackDecayCurve(
+            static_cast<float>(settings.state().attack_decay_curve[i]) / 255.0f);
       }
       set_loop_status(i, 0, last_loop);
     }

@@ -108,6 +108,7 @@ enum IEGParam : uint8_t {
 // fields (first in lowest address)
 struct State {
   uint16_t segment_configuration[kNumChannels];
+  uint8_t attack_decay_curve[kNumChannels];
   uint8_t color_blind : 1;
   uint8_t multimode : 3;
   uint8_t : 0;
@@ -118,7 +119,7 @@ struct State {
 };
 // ensure padding and alignment are as expected
 static_assert(
-  sizeof(State) == 6 * 2 + 1 + 1 + 12 * 6,
+  sizeof(State) == 6 * 2 + 6 + 1 + 1 + 12 * 6,
   "State struct size has changed - this will break saved settings in flash!"
 );
 

@@ -97,6 +97,10 @@ class ChainState {
   inline bool input_patched(size_t i) const {
     return (input_patched_[index_] >> i) & 1;
   }
+
+  inline bool is_single_attack_decay(size_t i) const {
+    return single_attack_decay_[i];
+  }
   inline LoopStatus loop_status(size_t i) const {
     return loop_status_[i];
   }
@@ -336,6 +340,7 @@ class ChainState {
   int16_t switch_press_time_[kMaxNumChannels];
   uint16_t unpatch_counter_[kNumChannels];
   LoopStatus loop_status_[kNumChannels];
+  bool single_attack_decay_[kNumChannels];
   ChannelBitmask attenuate_;
   ChannelBitmask process_cv_;
 

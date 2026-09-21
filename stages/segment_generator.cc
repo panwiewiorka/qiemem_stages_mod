@@ -315,7 +315,7 @@ void SegmentGenerator::ProcessAttackDecayEnvelope(
       }
     }
 
-    lp_ = value_ = WarpPhase(phase_, 0.5f);
+    lp_ = value_ = WarpPhase(phase_, attack_decay_curve_);
 
     out->value = lp_;
     out->phase = phase_;

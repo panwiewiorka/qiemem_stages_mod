@@ -57,6 +57,11 @@ bool Settings::Init() {
       &state_.segment_configuration[0],
       &state_.segment_configuration[kNumChannels],
       0);
+
+    fill(
+      &state_.attack_decay_curve[0],
+      &state_.attack_decay_curve[kNumChannels],
+      128);
   
   state_.color_blind = 0;
   state_.multimode = (uint8_t) MULTI_MODE_STAGES;

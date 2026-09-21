@@ -161,6 +161,10 @@ class SegmentGenerator {
     multimode_ = multimode;
   }
 
+  void SetAttackDecayCurve(float curve) {
+    attack_decay_curve_ = curve;
+  }
+
   void Configure(
       bool has_trigger,
       const segment::Configuration* segment_configuration,
@@ -308,6 +312,7 @@ class SegmentGenerator {
   float next_; // used for spline interpolation in smooth random
   float lp_;
   float primary_;
+  float attack_decay_curve_ = 0.5f;
 
   float zero_;
   float half_;

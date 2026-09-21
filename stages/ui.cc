@@ -125,6 +125,8 @@ void Ui::Poll() {
         not_patched_when_pressed_ |= (!input_patched) << i;
 
         uint16_t old_flags = seg_config[i];
+        uint8_t old_attack_decay_curve =
+          settings_->state().attack_decay_curve[i];
 
         if (changing_slider_prop_ >> i & 1 // in the middle of change, so keep changing
             || fabsf(slider - locked_slider) > 0.05f) {
@@ -190,7 +192,17 @@ void Ui::Poll() {
           }
         }
 
-        if( !(changing_pot_prop_ >> i & 1) && fabs(pot - locked_pot) > 0.05f) {
+        const bool attack_decay_curve =
+            multimode == MULTI_MODE_STAGES_ADVANCED &&
+            chain_state_->is_single_attack_decay(i);
+        if (attack_decay_curve) {
+          if (fabsf(pot - locked_pot) > 0.05f) {
+            changing_pot_prop_ |= 1 << i;
+          }
+          settings_->mutable_state()->attack_decay_curve[i] =
+              static_cast<uint8_t>(pot * 255.0f);
+        } else if (!(changing_pot_prop_ >> i & 1) &&
+                   fabsf(pot - locked_pot) > 0.05f) {
           // This is a toggle, so don't change if we've changed.
           changing_pot_prop_ |= 1 << i;
           switch (multimode) {
@@ -210,7 +222,8 @@ void Ui::Poll() {
           changing_gate_prop_ |= 1 << i;
           seg_config[i] |= 0x0080;
         }
-        dirty_ = dirty_ || seg_config[i] != old_flags;
+        dirty_ = dirty_ || seg_config[i] != old_flags ||
+          settings_->state().attack_decay_curve[i] != old_attack_decay_curve;
       } else if (cv_reader_->is_locked(i)) {
         changing_pot_prop_ &= ~(1 << i);
         changing_slider_prop_ &= ~(1 << i);
@@ -400,6 +413,9 @@ void Ui::UpdateLEDs() {
         }
         uint8_t type = configuration & 0x3;
         bool self_loop = chain_state_->loop_status(i) == ChainState::LOOP_STATUS_SELF;
+        bool attack_decay_curve =
+            multimode == MULTI_MODE_STAGES_ADVANCED &&
+            chain_state_->is_single_attack_decay(i);
         LedColor color = palette_[type];
         if (settings_->in_seg_gen_mode()) {
           uint8_t speed = configuration >> 8 & 0x3;
@@ -420,7 +436,8 @@ void Ui::UpdateLEDs() {
                color = LED_COLOR_RED;
                brightness >>= 2;
             }
-          } else if (is_bipolar(configuration) && (((ms >> 8) & 0b11) == 0)) {
+          } else if (!attack_decay_curve && is_bipolar(configuration) &&
+                     (((ms >> 8) & 0b11) == 0)) {
             color = LED_COLOR_RED;
             brightness = 0x1;
           }
